@@ -10,39 +10,49 @@ const Index = () => {
     // Initialize files from localStorage on component mount
     const savedFiles = localStorage.getItem(STORAGE_KEY);
     if (savedFiles) {
-      return JSON.parse(savedFiles).map((file: FileInfo) => ({
-        ...file,
-        uploadDate: new Date(file.uploadDate), // Convert date string back to Date object
-      }));
+      try {
+        return JSON.parse(savedFiles).map((file: FileInfo & { data: string }) => ({
+          ...file,
+          uploadDate: new Date(file.uploadDate),
+          url: file.data // Restore the data URL
+        }));
+      } catch (error) {
+        console.error('Error parsing saved files:', error);
+        return [];
+      }
     }
     return [];
   });
 
   // Save files to localStorage whenever they change
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(files));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(files.map(file => ({
+      ...file,
+      data: file.url // Store the data URL
+    }))));
   }, [files]);
 
   const handleFileUpload = async (uploadedFiles: File[]) => {
-    const formData = new FormData();
-    uploadedFiles.forEach((file) => {
-      formData.append('files', file);
-    });
+    const newFiles: FileInfo[] = [];
 
-    try {
-      // In a real implementation, you would upload to your server here
-      // For now, we'll simulate the upload
-      const newFiles: FileInfo[] = uploadedFiles.map((file) => ({
+    for (const file of uploadedFiles) {
+      // Convert file to base64 data URL
+      const reader = new FileReader();
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      newFiles.push({
         name: file.name,
         size: file.size,
         uploadDate: new Date(),
-        url: URL.createObjectURL(file), // In production, this would be the server URL
-      }));
-
-      setFiles((prev) => [...newFiles, ...prev]);
-    } catch (error) {
-      console.error('Upload failed:', error);
+        url: dataUrl,
+      });
     }
+
+    setFiles(prev => [...newFiles, ...prev]);
   };
 
   return (
