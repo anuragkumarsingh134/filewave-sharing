@@ -2,57 +2,96 @@
 import React, { useState, useEffect } from 'react';
 import { FileUpload } from '@/components/FileUpload';
 import { FileList, type FileInfo } from '@/components/FileList';
+import { toast } from 'sonner';
 
-const STORAGE_KEY = 'filewave_files';
+const DB_NAME = 'filewave_db';
+const STORE_NAME = 'files';
+const DB_VERSION = 1;
 
 const Index = () => {
-  const [files, setFiles] = useState<FileInfo[]>(() => {
-    // Initialize files from localStorage on component mount
-    const savedFiles = localStorage.getItem(STORAGE_KEY);
-    if (savedFiles) {
-      try {
-        return JSON.parse(savedFiles).map((file: FileInfo & { data: string }) => ({
-          ...file,
-          uploadDate: new Date(file.uploadDate),
-          url: file.data // Restore the data URL
-        }));
-      } catch (error) {
-        console.error('Error parsing saved files:', error);
-        return [];
-      }
-    }
-    return [];
-  });
+  const [files, setFiles] = useState<FileInfo[]>([]);
 
-  // Save files to localStorage whenever they change
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(files.map(file => ({
-      ...file,
-      data: file.url // Store the data URL
-    }))));
-  }, [files]);
+    // Initialize IndexedDB and load files
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+    request.onerror = () => {
+      toast.error('Failed to open database');
+    };
+
+    request.onupgradeneeded = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'name' });
+      }
+    };
+
+    request.onsuccess = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result;
+      const transaction = db.transaction(STORE_NAME, 'readonly');
+      const store = transaction.objectStore(STORE_NAME);
+      const getAllRequest = store.getAll();
+
+      getAllRequest.onsuccess = () => {
+        const savedFiles = getAllRequest.result;
+        setFiles(savedFiles.map(file => ({
+          ...file,
+          uploadDate: new Date(file.uploadDate)
+        })));
+      };
+    };
+  }, []);
+
+  const saveToIndexedDB = async (newFiles: FileInfo[]) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    
+    request.onsuccess = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result;
+      const transaction = db.transaction(STORE_NAME, 'readwrite');
+      const store = transaction.objectStore(STORE_NAME);
+      
+      newFiles.forEach(file => {
+        store.put(file);
+      });
+
+      transaction.oncomplete = () => {
+        setFiles(prev => [...newFiles, ...prev]);
+        toast.success(`${newFiles.length} file(s) uploaded successfully`);
+      };
+
+      transaction.onerror = () => {
+        toast.error('Failed to save files');
+      };
+    };
+  };
 
   const handleFileUpload = async (uploadedFiles: File[]) => {
     const newFiles: FileInfo[] = [];
 
     for (const file of uploadedFiles) {
-      // Convert file to base64 data URL
-      const reader = new FileReader();
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+      try {
+        // Convert file to base64 data URL
+        const reader = new FileReader();
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
 
-      newFiles.push({
-        name: file.name,
-        size: file.size,
-        uploadDate: new Date(),
-        url: dataUrl,
-      });
+        newFiles.push({
+          name: file.name,
+          size: file.size,
+          uploadDate: new Date(),
+          url: dataUrl,
+        });
+      } catch (error) {
+        toast.error(`Failed to process file: ${file.name}`);
+      }
     }
 
-    setFiles(prev => [...newFiles, ...prev]);
+    if (newFiles.length > 0) {
+      await saveToIndexedDB(newFiles);
+    }
   };
 
   return (
