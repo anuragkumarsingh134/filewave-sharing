@@ -1,10 +1,27 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FileUpload } from '@/components/FileUpload';
 import { FileList, type FileInfo } from '@/components/FileList';
 
+const STORAGE_KEY = 'filewave_files';
+
 const Index = () => {
-  const [files, setFiles] = useState<FileInfo[]>([]);
+  const [files, setFiles] = useState<FileInfo[]>(() => {
+    // Initialize files from localStorage on component mount
+    const savedFiles = localStorage.getItem(STORAGE_KEY);
+    if (savedFiles) {
+      return JSON.parse(savedFiles).map((file: FileInfo) => ({
+        ...file,
+        uploadDate: new Date(file.uploadDate), // Convert date string back to Date object
+      }));
+    }
+    return [];
+  });
+
+  // Save files to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(files));
+  }, [files]);
 
   const handleFileUpload = async (uploadedFiles: File[]) => {
     const formData = new FormData();
