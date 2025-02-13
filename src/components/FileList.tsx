@@ -26,9 +26,24 @@ export const FileList = ({ files }: FileListProps) => {
 
   const copyToClipboard = async (url: string) => {
     try {
-      await navigator.clipboard.writeText(url);
+      // Create a temporary input element
+      const tempInput = document.createElement('input');
+      tempInput.value = url;
+      document.body.appendChild(tempInput);
+      
+      // Select the text
+      tempInput.select();
+      tempInput.setSelectionRange(0, 99999); // For mobile devices
+      
+      // Copy the text
+      document.execCommand('copy');
+      
+      // Remove the temporary element
+      document.body.removeChild(tempInput);
+      
       toast.success('Link copied to clipboard');
     } catch (err) {
+      console.error('Copy failed:', err);
       toast.error('Failed to copy link');
     }
   };
