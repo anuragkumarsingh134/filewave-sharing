@@ -14,9 +14,18 @@ const Index = () => {
     const setup = async () => {
       try {
         setIsLoading(true);
+        
+        // Initialize Appwrite
         await initAppwrite();
-        const filesList = await listFiles();
-        setFiles(filesList);
+        
+        // Try to load files
+        try {
+          const filesList = await listFiles();
+          setFiles(filesList);
+        } catch (fileError) {
+          console.error('Failed to load files:', fileError);
+          toast.error('Unable to load files. Please ensure your Appwrite bucket is set up.');
+        }
       } catch (error) {
         console.error('Setup error:', error);
         toast.error('Failed to connect to the storage service');
@@ -32,10 +41,10 @@ const Index = () => {
     if (uploadedFiles.length === 0) return;
     
     const newFiles: FileInfo[] = [];
+    setIsLoading(true);
     
     for (const file of uploadedFiles) {
       try {
-        setIsLoading(true);
         const fileInfo = await uploadFile(file);
         newFiles.push(fileInfo);
       } catch (error) {
