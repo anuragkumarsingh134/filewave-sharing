@@ -1,21 +1,25 @@
 
 import React from 'react';
-import { Download, Copy, FileText } from 'lucide-react';
+import { Download, Copy, FileText, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
+import { deleteFile } from '@/lib/appwrite';
 
 export interface FileInfo {
+  id: string;
   name: string;
   size: number;
   uploadDate: Date;
   url: string;
+  fileId?: string;
 }
 
 interface FileListProps {
   files: FileInfo[];
+  onDelete?: (fileId: string) => void;
 }
 
-export const FileList = ({ files }: FileListProps) => {
+export const FileList = ({ files, onDelete }: FileListProps) => {
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -48,11 +52,29 @@ export const FileList = ({ files }: FileListProps) => {
     }
   };
 
+  const handleDeleteFile = async (file: FileInfo) => {
+    if (!file.id || !file.fileId) {
+      toast.error('Cannot delete this file');
+      return;
+    }
+
+    try {
+      await deleteFile(file.id, file.fileId);
+      if (onDelete) {
+        onDelete(file.id);
+      }
+      toast.success(`${file.name} deleted successfully`);
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error(`Failed to delete ${file.name}`);
+    }
+  };
+
   return (
     <div className="w-full space-y-4 animate-fade-in">
       {files.map((file, index) => (
         <div
-          key={`${file.name}-${index}`}
+          key={`${file.id || file.name}-${index}`}
           className="p-4 transition-all duration-300 bg-white rounded-lg shadow-sm hover:shadow-md"
         >
           <div className="flex items-center justify-between">
@@ -82,6 +104,16 @@ export const FileList = ({ files }: FileListProps) => {
               >
                 <Download className="w-4 h-4" />
               </Button>
+              {file.fileId && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-gray-600 hover:text-red-600"
+                  onClick={() => handleDeleteFile(file)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
             </div>
           </div>
         </div>

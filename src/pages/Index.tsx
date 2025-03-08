@@ -3,95 +3,53 @@ import React, { useState, useEffect } from 'react';
 import { FileUpload } from '@/components/FileUpload';
 import { FileList, type FileInfo } from '@/components/FileList';
 import { toast } from 'sonner';
-
-const DB_NAME = 'filewave_db';
-const STORE_NAME = 'files';
-const DB_VERSION = 1;
+import { initAppwrite, listFiles, uploadFile } from '@/lib/appwrite';
 
 const Index = () => {
   const [files, setFiles] = useState<FileInfo[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Initialize IndexedDB and load files
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-    request.onerror = () => {
-      toast.error('Failed to open database');
-    };
-
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: 'name' });
+    // Initialize Appwrite and load files
+    const setup = async () => {
+      try {
+        setIsLoading(true);
+        await initAppwrite();
+        const filesList = await listFiles();
+        setFiles(filesList);
+      } catch (error) {
+        console.error('Setup error:', error);
+        toast.error('Failed to connect to the storage service');
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    request.onsuccess = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
-      const transaction = db.transaction(STORE_NAME, 'readonly');
-      const store = transaction.objectStore(STORE_NAME);
-      const getAllRequest = store.getAll();
-
-      getAllRequest.onsuccess = () => {
-        const savedFiles = getAllRequest.result;
-        setFiles(savedFiles.map(file => ({
-          ...file,
-          uploadDate: new Date(file.uploadDate)
-        })));
-      };
-    };
+    setup();
   }, []);
 
-  const saveToIndexedDB = async (newFiles: FileInfo[]) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    
-    request.onsuccess = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
-      const transaction = db.transaction(STORE_NAME, 'readwrite');
-      const store = transaction.objectStore(STORE_NAME);
-      
-      newFiles.forEach(file => {
-        store.put(file);
-      });
-
-      transaction.oncomplete = () => {
-        setFiles(prev => [...newFiles, ...prev]);
-        toast.success(`${newFiles.length} file(s) uploaded successfully`);
-      };
-
-      transaction.onerror = () => {
-        toast.error('Failed to save files');
-      };
-    };
-  };
-
   const handleFileUpload = async (uploadedFiles: File[]) => {
+    if (uploadedFiles.length === 0) return;
+    
     const newFiles: FileInfo[] = [];
-
+    
     for (const file of uploadedFiles) {
       try {
-        // Convert file to base64 data URL
-        const reader = new FileReader();
-        const dataUrl = await new Promise<string>((resolve, reject) => {
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-
-        newFiles.push({
-          name: file.name,
-          size: file.size,
-          uploadDate: new Date(),
-          url: dataUrl,
-        });
+        setIsLoading(true);
+        const fileInfo = await uploadFile(file);
+        newFiles.push(fileInfo);
       } catch (error) {
-        toast.error(`Failed to process file: ${file.name}`);
+        console.error('Upload error:', error);
+        toast.error(`Failed to upload: ${file.name}`);
       }
     }
 
     if (newFiles.length > 0) {
-      await saveToIndexedDB(newFiles);
+      setFiles(prev => [...newFiles, ...prev]);
+      toast.success(`${newFiles.length} file(s) uploaded successfully`);
     }
+    
+    setIsLoading(false);
   };
 
   return (
@@ -101,7 +59,7 @@ const Index = () => {
           <div className="text-center">
             <h1 className="text-4xl font-semibold text-gray-900">File Wave</h1>
             <p className="mt-2 text-gray-600">
-              Simple and secure file sharing
+              Simple and secure file sharing with Appwrite
             </p>
           </div>
 
@@ -109,10 +67,22 @@ const Index = () => {
             <FileUpload onUpload={handleFileUpload} />
           </div>
 
-          {files.length > 0 && (
+          {isLoading && (
+            <div className="flex justify-center">
+              <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-mint-500"></div>
+            </div>
+          )}
+
+          {!isLoading && files.length > 0 && (
             <div className="space-y-4">
               <h2 className="text-xl font-medium text-gray-900">Uploaded Files</h2>
               <FileList files={files} />
+            </div>
+          )}
+          
+          {!isLoading && files.length === 0 && (
+            <div className="text-center p-8 bg-white/80 rounded-xl">
+              <p className="text-gray-500">No files uploaded yet</p>
             </div>
           )}
         </div>
