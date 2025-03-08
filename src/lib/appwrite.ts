@@ -19,9 +19,9 @@ export const initAppwrite = async () => {
   try {
     // Check if database exists, create if it doesn't
     try {
-      await databases.getDatabase(DATABASE_ID);
+      await databases.get(DATABASE_ID);
     } catch (error) {
-      await databases.createDatabase(
+      await databases.create(
         DATABASE_ID, 
         'FileWave Database'
       );
@@ -44,29 +44,33 @@ export const initAppwrite = async () => {
       );
       
       // Create attributes for our collection
-      await databases.createStringAttribute(
+      await databases.createAttribute(
         DATABASE_ID, 
         COLLECTION_ID, 
         'name',
+        'string',
         255,
         true
       );
-      await databases.createIntegerAttribute(
+      await databases.createAttribute(
         DATABASE_ID, 
         COLLECTION_ID, 
         'size',
+        'integer',
         true
       );
-      await databases.createDatetimeAttribute(
+      await databases.createAttribute(
         DATABASE_ID, 
         COLLECTION_ID, 
         'uploadDate',
+        'datetime',
         true
       );
-      await databases.createStringAttribute(
+      await databases.createAttribute(
         DATABASE_ID, 
         COLLECTION_ID, 
         'fileId',
+        'string',
         255,
         true
       );
