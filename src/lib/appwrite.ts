@@ -4,7 +4,7 @@ import { Client, Storage, Databases, ID, Query, Models } from 'appwrite';
 // Appwrite configuration
 const client = new Client()
   .setEndpoint('https://cloud.appwrite.io/v1') // Replace with your Appwrite endpoint if self-hosted
-  .setProject('YOUR_PROJECT_ID'); // Replace with your project ID
+  .setProject('67cc18e300327dea2755'); // Your project ID
 
 // Initialize Appwrite services
 const storage = new Storage(client);
@@ -19,9 +19,9 @@ export const initAppwrite = async () => {
   try {
     // Check if database exists, create if it doesn't
     try {
-      await databases.getDatabase(DATABASE_ID);
+      await databases.get(DATABASE_ID);
     } catch (error) {
-      await databases.createDatabase(
+      await databases.create(
         DATABASE_ID, 
         'FileWave Database',
         'filewave_db'
@@ -30,11 +30,12 @@ export const initAppwrite = async () => {
 
     // Check if collection exists, create if it doesn't
     try {
-      await databases.getCollection(
+      await databases.listDocuments(
         DATABASE_ID, 
         COLLECTION_ID
       );
     } catch (error) {
+      // Create collection
       await databases.createCollection(
         DATABASE_ID, 
         COLLECTION_ID, 
@@ -42,31 +43,37 @@ export const initAppwrite = async () => {
       );
       
       // Create attributes for our collection
-      await databases.createStringAttribute(
+      await databases.createAttribute(
         DATABASE_ID, 
         COLLECTION_ID, 
         'name', 
-        255, 
-        true
+        'string',
+        true,
+        null,
+        255
       );
-      await databases.createIntegerAttribute(
+      await databases.createAttribute(
         DATABASE_ID, 
         COLLECTION_ID, 
         'size', 
+        'integer',
         true
       );
-      await databases.createDatetimeAttribute(
+      await databases.createAttribute(
         DATABASE_ID, 
         COLLECTION_ID, 
         'uploadDate', 
+        'datetime',
         true
       );
-      await databases.createStringAttribute(
+      await databases.createAttribute(
         DATABASE_ID, 
         COLLECTION_ID, 
         'fileId', 
-        255, 
-        true
+        'string',
+        true,
+        null,
+        255
       );
     }
   } catch (error) {
@@ -79,7 +86,7 @@ export const uploadFile = async (file: File) => {
   try {
     // 1. Upload the file to Appwrite storage
     const storageFile = await storage.createFile(
-      'filewave_bucket', // Replace with your bucket ID
+      'filewave_bucket', // Your bucket ID
       ID.unique(),
       file
     );
