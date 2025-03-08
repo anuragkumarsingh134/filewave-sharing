@@ -19,9 +19,9 @@ export const initAppwrite = async () => {
   try {
     // Check if database exists, create if it doesn't
     try {
-      await databases.get(DATABASE_ID);
+      await databases.getDatabase(DATABASE_ID);
     } catch (error) {
-      await databases.create(
+      await databases.createDatabase(
         DATABASE_ID, 
         'FileWave Database'
       );
@@ -39,7 +39,8 @@ export const initAppwrite = async () => {
         DATABASE_ID, 
         COLLECTION_ID, 
         {
-          name: 'Files Collection'
+          name: 'Files Collection',
+          permissions: []
         }
       );
       
