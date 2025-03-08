@@ -1,5 +1,5 @@
 
-import { Client, Storage, Databases, ID, Query } from 'appwrite';
+import { Client, Storage, Databases, ID, Query, Models } from 'appwrite';
 
 // Appwrite configuration
 const client = new Client()
@@ -17,16 +17,23 @@ const COLLECTION_ID = 'files';
 // Initialize Appwrite database and collections (call this on app start)
 export const initAppwrite = async () => {
   try {
-    // Create database if it doesn't exist
+    // Check if database exists, create if it doesn't
     try {
-      await databases.get(DATABASE_ID);
+      await databases.getDatabase(DATABASE_ID);
     } catch (error) {
-      await databases.create(DATABASE_ID, 'FileWave Database');
+      await databases.createDatabase(
+        DATABASE_ID, 
+        'FileWave Database',
+        'filewave_db'
+      );
     }
 
-    // Create collection if it doesn't exist
+    // Check if collection exists, create if it doesn't
     try {
-      await databases.getCollection(DATABASE_ID, COLLECTION_ID);
+      await databases.getCollection(
+        DATABASE_ID, 
+        COLLECTION_ID
+      );
     } catch (error) {
       await databases.createCollection(
         DATABASE_ID, 
@@ -35,10 +42,32 @@ export const initAppwrite = async () => {
       );
       
       // Create attributes for our collection
-      await databases.createStringAttribute(DATABASE_ID, COLLECTION_ID, 'name', 255, true);
-      await databases.createIntegerAttribute(DATABASE_ID, COLLECTION_ID, 'size', true);
-      await databases.createDatetimeAttribute(DATABASE_ID, COLLECTION_ID, 'uploadDate', true);
-      await databases.createStringAttribute(DATABASE_ID, COLLECTION_ID, 'fileId', 255, true);
+      await databases.createStringAttribute(
+        DATABASE_ID, 
+        COLLECTION_ID, 
+        'name', 
+        255, 
+        true
+      );
+      await databases.createIntegerAttribute(
+        DATABASE_ID, 
+        COLLECTION_ID, 
+        'size', 
+        true
+      );
+      await databases.createDatetimeAttribute(
+        DATABASE_ID, 
+        COLLECTION_ID, 
+        'uploadDate', 
+        true
+      );
+      await databases.createStringAttribute(
+        DATABASE_ID, 
+        COLLECTION_ID, 
+        'fileId', 
+        255, 
+        true
+      );
     }
   } catch (error) {
     console.error('Appwrite initialization error:', error);
@@ -75,6 +104,7 @@ export const uploadFile = async (file: File) => {
       size: file.size,
       uploadDate: new Date(document.uploadDate),
       url: getFileViewURL(storageFile.$id),
+      fileId: storageFile.$id
     };
   } catch (error) {
     console.error('Upload error:', error);
@@ -104,6 +134,7 @@ export const listFiles = async () => {
       size: doc.size,
       uploadDate: new Date(doc.uploadDate),
       url: getFileViewURL(doc.fileId),
+      fileId: doc.fileId,
     }));
   } catch (error) {
     console.error('List files error:', error);
